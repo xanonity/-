@@ -1,4 +1,4 @@
-cat 1cv8s*/*.log|
+cat rphost*/*.log|
 perl -pe 's/\xef\xbb\xbf//g'| 
 grep -P '^\d\d:\d\d\.\d+-'|
 perl -pe 's/^\d\d:\d\d\.\d+-//g'|

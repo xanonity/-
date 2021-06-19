@@ -1,0 +1,108 @@
+--grep -rP 'CALL.+InBytes=[^0]\d*' */rmngr*/*.log|
+--perl -pe 's/^.+\/(\d+)\.log.+CallID=(\d+),.+InBytes=(\d+),.*/\1;\2;\3/' > call.csv
+
+--grep -rP 'SCALL' */rphost*/*.log |
+--perl -pe 's/^.+(rphost.+)\/{1}(\d+)\.log.*t:clientID=(\d+).*CallID=(\d+).*/\1;\2;\3;\4/'|
+--grep -P '.+;.+;.+;' > scall.csv
+
+--grep -rP 'CONN.+clientID' */rphost*/*.log |
+--perl -pe 's/^.+(rphost.+)\/{1}(\d+)\.log.*t:clientID=(\d+).*/\1;\2/' |
+--grep -P '.+;.+' > usr.csv
+
+
+
+CREATE TABLE [dbo].[scall](
+[process] [varchar](50) NULL,
+[period] [varchar](8) NULL,
+[ClientID] [bigint] NULL,
+[CallID] [bigint] NULL
+) ON [PRIMARY]
+GO
+ 
+CREATE TABLE [dbo].[call](
+[period] [varchar](8) NULL,
+[CallID] [bigint] NULL,
+[Mem] [bigint] NULL
+) ON [PRIMARY]
+GO
+ 
+CREATE TABLE [dbo].[usr](
+[process] [varchar](50) NULL,
+[ClientID] [bigint] NULL,
+[Usr] [varchar](255) NULL
+) ON [PRIMARY]
+GO
+ 
+CREATE NONCLUSTERED INDEX [IX_PC] ON [dbo].[call]
+(
+[period] ASC,
+[CallID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+ 
+CREATE NONCLUSTERED INDEX [IX_PC] ON [dbo].[scall]
+(
+[period] ASC,
+[CallID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+ 
+CREATE NONCLUSTERED INDEX [IX_CP] ON [dbo].[usr]
+(
+[ClientID] ASC,
+[process] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+
+
+
+
+
+
+
+
+--TOP – 10 пользователей в разрезе процессов и времени
+ 
+SELECT TOP 10
+ s.[process],
+ s.[period],
+ s.[ClientID],
+ SUM(c.[Mem]) AS Mem
+FROM
+ [dbo].[call] AS c
+ 
+ INNER JOIN [dbo].[scall] AS s
+ ON s.[period] = c.[period]
+ AND s.CallID = c.CallID
+ LEFT OUTER JOIN (SELECT DISTINCT process, ClientID FROM [dbo].[usr]) AS u
+ ON u.process = s.process
+ AND u.ClientID = s.ClientID
+GROUP BY
+ s.[process],
+ s.[period],
+ s.[ClientID]
+ORDER BY
+ Mem Desc
+ 
+ 
+ 
+--Найти все идентификаторы вызовов
+ 
+SELECT DISTINCT
+ s.[process],
+ s.[period],
+ s.[ClientID],
+ c.[Mem],
+ c.CallID
+FROM
+ [dbo].[call] AS c
+ 
+ INNER JOIN [dbo].[scall] AS s
+ ON s.[period] = c.[period]
+ AND s.CallID = c.CallID
+ AND s.[period] = '21060722' 
+ AND s.[ClientID] = 20
+ AND s.[process] = 'rphost_81932'
+ORDER BY
+ [Mem] DESC
+ 
